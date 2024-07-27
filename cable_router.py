@@ -91,18 +91,30 @@ class CableRouter:
     
         if not self.cable_points:  # Es el primer punto
             color = 'green'
+        elif len(self.cable_points) == 1:  # Es el segundo punto
+            # Cambiamos el color del primer punto a amarillo
+            self.plotter.remove_actor(self.cable_actors[0])
+            actor = self.plotter.add_mesh(pv.PolyData(self.cable_points[0]), 
+                                          color='yellow', 
+                                          point_size=15, 
+                                          render_points_as_spheres=True)
+            self.cable_actors[0] = actor
+            color = 'red'  # El nuevo punto será rojo
         else:
-            # Cambiamos el color del punto anterior a amarillo si no es el primero
-            if len(self.cable_points) > 1:
-                self.plotter.remove_actor(self.cable_actors[-1])
-                actor = self.plotter.add_mesh(pv.PolyData(self.cable_points[-1]), color='yellow', point_size=15, render_points_as_spheres=True)
-                self.cable_actors[-1] = actor
-        
-            # El nuevo punto siempre será rojo (punto final actual)
-            color = 'red'
+            # Cambiamos el color del punto anterior a amarillo
+            self.plotter.remove_actor(self.cable_actors[-1])
+            actor = self.plotter.add_mesh(pv.PolyData(self.cable_points[-1]), 
+                                          color='yellow', 
+                                          point_size=15, 
+                                          render_points_as_spheres=True)
+            self.cable_actors[-1] = actor
+            color = 'red'  # El nuevo punto será rojo
 
         self.cable_points.append(projected_point)
-        actor = self.plotter.add_mesh(pv.PolyData(projected_point), color=color, point_size=15, render_points_as_spheres=True)
+        actor = self.plotter.add_mesh(pv.PolyData(projected_point), 
+                                      color=color, 
+                                      point_size=15, 
+                                      render_points_as_spheres=True)
         self.cable_actors.append(actor)
 
         if len(self.cable_points) > 1:
@@ -128,14 +140,28 @@ class CableRouter:
                 
     def delete_point(self):
         if self.cable_points:
+            # Eliminar el último punto y su actor correspondiente
             self.cable_points.pop()
             last_actor = self.cable_actors.pop()
             self.plotter.remove_actor(last_actor)
-            update_cable_path(self)
-            print("Last point deleted")
-        else:
-            print("No points to delete")
 
+            # Si quedan puntos, actualizar el color del nuevo último punto a rojo
+            if self.cable_points:
+                new_last_point = self.cable_points[-1]
+                # Eliminar el actor del punto que ahora es el último
+                self.plotter.remove_actor(self.cable_actors[-1])
+                # Añadir un nuevo actor para el mismo punto, pero de color rojo
+                new_last_actor = self.plotter.add_mesh(pv.PolyData(new_last_point), 
+                                                       color='red', 
+                                                       point_size=15, 
+                                                       render_points_as_spheres=True)
+                # Reemplazar el actor en la lista
+                self.cable_actors[-1] = new_last_actor
+
+            update_cable_path(self)
+            print("Último punto eliminado")
+        else:
+            print("No hay puntos para eliminar")
 
     def clear_points(self):
         for actor in self.cable_actors:
