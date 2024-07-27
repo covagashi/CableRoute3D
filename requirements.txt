@@ -1,0 +1,6 @@
+numpy==1.21.5
+scipy==1.7.3
+pyvista==0.34.1
+PythonOCC-Core==7.5.1
+matplotlib==3.5.2
+trimesh==3.9.35
