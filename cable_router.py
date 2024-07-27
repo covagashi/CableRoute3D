@@ -23,27 +23,37 @@ class CableRouter:
         self.plotter = BackgroundPlotter()
         self.plotter.add_mesh(self.mesh, color='lightgray', opacity=0.5)
         
-        # Añadir menú desplegable
+    
+    # Mover la barra deslizadora a la parte inferior izquierda y hacerla más pequeña
+        slider = self.plotter.add_slider_widget(
+            callback=self.set_max_length,
+            rng=[0, 5000],
+            value=5000,
+            title="Max Length (mm)",
+            style="modern",
+            fmt="%.0f mm",
+            pointa=(0.72, 0.1), pointb=(0.9, 0.1),  # Posición y tamaño ajustados
+            #font_size=8
+        )
+     
+    
+    # Añadir menú desplegable
         user_menu = self.plotter.main_menu.addMenu('Cable Routing')
         user_menu.addAction('Toggle Add Point', self.toggle_add_point)
         user_menu.addAction('Delete Last Point', self.delete_point)
         user_menu.addAction('Clear All Points', self.clear_points)
 
-        # Añadir barra de herramientas
+    # Añadir barra de herramientas
         user_toolbar = self.plotter.app_window.addToolBar('Cable Routing Toolbar')
         self.add_action(user_toolbar, 'Add Point', self.toggle_add_point)
         self.add_action(user_toolbar, 'Delete Point', self.delete_point)
         self.add_action(user_toolbar, 'Clear Points', self.clear_points)
-
-        # Añadir slider
-        self.plotter.add_slider_widget(
-            callback=self.set_max_length,
-            rng=[0, 5000],  #Este es el rango del slider
-            value=5000,
-            title="Max Length (mm)",
-            style="modern",
-            fmt="%.0f mm"
-        )
+    
+    # Añadir el widget de orientación de ejes (triad) en la esquina inferior derecha
+        self.plotter.add_axes()
+    
+    # Inicializar el texto de la longitud del cable en la parte inferior izquierda
+        self.plotter.add_text("Cable length: 0.00 mm", name='length_text', position='lower_left', font_size=10)
         
     def add_action(self, toolbar, key, method):
         action = QAction(key, self.plotter.app_window)
@@ -68,7 +78,7 @@ class CableRouter:
         if not self.picking_enabled:
             self.plotter.enable_point_picking(callback=self._add_point_callback, show_message=True)
             self.picking_enabled = True
-            self.plotter.add_text("Click to add a point", name="picking_instruction", position="upper_right")
+            self.plotter.add_text("Click to add a point", font_size=7, name="picking_instruction", position="upper_right")
 
     def disable_picking(self):
         if self.picking_enabled:
@@ -77,24 +87,28 @@ class CableRouter:
             self.plotter.remove_actor("picking_instruction")
 
     def _add_point_callback(self, point):
-        if len(self.cable_points) < 2:  # Start or end point
-            projected_point = project_point_to_surface(self, point)
-            color = 'green' if not self.cable_points else 'red'
-        else:  # Intermediate point
-            projected_point = point  # No projection for intermediate points
-            color = 'yellow'
+        projected_point = project_point_to_surface(self, point)
+    
+        if not self.cable_points:  # Es el primer punto
+            color = 'green'
+        else:
+            # Cambiamos el color del punto anterior a amarillo si no es el primero
+            if len(self.cable_points) > 1:
+                self.plotter.remove_actor(self.cable_actors[-1])
+                actor = self.plotter.add_mesh(pv.PolyData(self.cable_points[-1]), color='yellow', point_size=15, render_points_as_spheres=True)
+                self.cable_actors[-1] = actor
         
+            # El nuevo punto siempre será rojo (punto final actual)
+            color = 'red'
+
         self.cable_points.append(projected_point)
         actor = self.plotter.add_mesh(pv.PolyData(projected_point), color=color, point_size=15, render_points_as_spheres=True)
         self.cable_actors.append(actor)
-        
+
         if len(self.cable_points) > 1:
             self._check_and_adjust_cable_length()
-        
+    
         update_cable_path(self)
-        
-        # Después de añadir un punto, volvemos a habilitar el picking para el siguiente punto
-        self.enable_picking()
         
     def _check_and_adjust_cable_length(self):
         while self.calculate_cable_length() > self.max_length and len(self.cable_points) > 2:

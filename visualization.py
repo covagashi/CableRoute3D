@@ -14,19 +14,22 @@ def setup_plotter(router):
     )
     return plotter
 
-def update_cable_path(router):
-    if router.plotter is None:
+def update_cable_path(self):
+    if self.plotter is None:
         return
 
     # Eliminar la ruta anterior
-    router.plotter.remove_actor('cable_path')
+    self.plotter.remove_actor('cable_path')
     
-    if len(router.cable_points) > 1:
-        path = pv.PolyData(router.cable_points)
-        router.plotter.add_mesh(path, color='blue', line_width=5, render_lines_as_tubes=True, name='cable_path')
+    if len(self.cable_points) > 1:
+        line = pv.Line(self.cable_points[0], self.cable_points[-1], resolution=len(self.cable_points)-1)
+        line.points = self.cable_points
+        tube = line.tube(radius=2)
+        self.plotter.add_mesh(tube, color='blue', name='cable_path', render_lines_as_tubes=True, line_width=5)
     
     # Actualizar la longitud del cable
-    length = router.calculate_cable_length()
-    router.plotter.add_text(f"Cable length: {length:.2f} mm", name='length_text', position='lower_left')
+    length = self.calculate_cable_length()
+    self.plotter.remove_actor('length_text')
+    self.plotter.add_text(f"Cable length: {length:.2f} mm", name='length_text', position='lower_left', font_size=10)
 
-    router.plotter.render()
+    self.plotter.render()
