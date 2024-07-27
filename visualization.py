@@ -6,8 +6,8 @@ def setup_plotter(router):
     plotter.add_text("Use buttons to interact with the model", position='upper_left')
     plotter.add_slider_widget(
         callback=router.set_max_length,
-        rng=[0, 1000],
-        value=1000,
+        rng=[0, 5000],
+        value=5000,
         title="Max Length (mm)",
         style="modern",
         fmt="%.0f mm"
@@ -22,8 +22,7 @@ def update_cable_path(router):
     router.plotter.remove_actor('cable_path')
     
     if len(router.cable_points) > 1:
-        points = [actor.points[0] for actor in router.cable_points]
-        path = pv.PolyData(points)
+        path = pv.PolyData(router.cable_points)
         router.plotter.add_mesh(path, color='blue', line_width=5, render_lines_as_tubes=True, name='cable_path')
     
     # Actualizar la longitud del cable

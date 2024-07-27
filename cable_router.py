@@ -13,7 +13,8 @@ class CableRouter:
         self.points, self.faces = discretize_shape(self.shape)
         self.mesh = pv.PolyData(self.points, faces=self.faces)
         self.cable_points = []
-        self.max_length = 5000  # Inicializado a 1000 mm
+        self.cable_actors = []
+        self.max_length = 1000  # Inicializado a 1000 mm
         self.kdtree = cKDTree(self.points)
         self.plotter = None  
         self.picking_enabled = False
@@ -37,8 +38,8 @@ class CableRouter:
         # Añadir slider
         self.plotter.add_slider_widget(
             callback=self.set_max_length,
-            rng=[0, 1000],
-            value=1000,
+            rng=[0, 5000],  #Este es el rango del slider
+            value=5000,
             title="Max Length (mm)",
             style="modern",
             fmt="%.0f mm"
@@ -83,8 +84,9 @@ class CableRouter:
             projected_point = point  # No projection for intermediate points
             color = 'yellow'
         
+        self.cable_points.append(projected_point)
         actor = self.plotter.add_mesh(pv.PolyData(projected_point), color=color, point_size=15, render_points_as_spheres=True)
-        self.cable_points.append(actor)
+        self.cable_actors.append(actor)
         
         if len(self.cable_points) > 1:
             self._check_and_adjust_cable_length()
@@ -99,42 +101,44 @@ class CableRouter:
             self.delete_point()
         
         if self.calculate_cable_length() > self.max_length:
-            last_point = self.cable_points[-1].points[0]
-            second_last_point = self.cable_points[-2].points[0]
+            last_point = self.cable_points[-1]
+            second_last_point = self.cable_points[-2]
             direction = last_point - second_last_point
             distance = np.linalg.norm(direction)
             if distance > 0:
                 direction /= distance
                 new_last_point = second_last_point + direction * (self.max_length - self.calculate_cable_length())
-                self.cable_points[-1].points[0] = new_last_point
-                self.plotter.remove_actor(self.cable_points[-1])
-                self.cable_points[-1] = self.plotter.add_mesh(pv.PolyData(new_last_point), color='red', point_size=15, render_points_as_spheres=True)
+                self.cable_points[-1] = new_last_point
+                self.plotter.remove_actor(self.cable_actors[-1])
+                self.cable_actors[-1] = self.plotter.add_mesh(pv.PolyData(new_last_point), color='red', point_size=15, render_points_as_spheres=True)
                 
-
     def delete_point(self):
         if self.cable_points:
-            last_point = self.cable_points.pop()
-            self.plotter.remove_actor(last_point)
+            self.cable_points.pop()
+            last_actor = self.cable_actors.pop()
+            self.plotter.remove_actor(last_actor)
             update_cable_path(self)
             print("Last point deleted")
         else:
             print("No points to delete")
 
+
     def clear_points(self):
-        for point in self.cable_points:
-            self.plotter.remove_actor(point)
+        for actor in self.cable_actors:
+            self.plotter.remove_actor(actor)
         self.cable_points.clear()
+        self.cable_actors.clear()
         update_cable_path(self)
+
 
     def calculate_cable_length(self):
         if len(self.cable_points) < 2:
             return 0.0
         
-        points = [actor.points[0] for actor in self.cable_points]
-        distances = np.linalg.norm(np.diff(points, axis=0), axis=1)
+        distances = np.linalg.norm(np.diff(self.cable_points, axis=0), axis=1)
         total_length = np.sum(distances)
         return total_length
-
+    
     def set_max_length(self, value):
         self.max_length = value
         if self.plotter:
